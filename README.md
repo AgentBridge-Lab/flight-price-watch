@@ -69,6 +69,21 @@ chmod 600 ~/.config/flight-price-watch/.env
 
 끝입니다. 30분마다 알아서 확인합니다. 멈추려면 `Ctrl+C` 를 누르거나 `state/my-watch/stop.flag` 파일을 만드세요.
 
+### 언제까지만 감시할지 정하기
+
+비행기가 뜨고 나서도 계속 조회하면 곤란하겠죠. `--until` 로 종료 시점을 정하면 그때 스스로 멈춥니다.
+
+```bash
+  --until 202609202000    # 2026년 9월 20일 20시가 지나면 종료
+```
+
+만료되면 더 이상 조회하지 않고 `stop.flag` 를 남긴 뒤 종료합니다.
+스케줄러에 등록해뒀다면 `--unload-launchd-label` 로 **잡까지 스스로 해제**하게 할 수 있습니다.
+
+```bash
+  --until 202609202000 --unload-launchd-label com.flightwatch.mywatch
+```
+
 ---
 
 ## 알림은 이렇게 옵니다
@@ -109,6 +124,8 @@ CJU->CJJ 20260920  25편  partial=False
 | `--notify` | `stdout` | `stdout` / `telegram` / `openclaw` |
 | `--poll-seconds` | `1800` | 조회 간격(초) |
 | `--once` | 꺼짐 | 한 번만 실행하고 종료 (cron·launchd 용) |
+| `--until` | 없음 | 감시 종료 시점 `YYYYMMDDHHMM`. 지나면 스스로 멈춤 |
+| `--unload-launchd-label` | 없음 | 만료 시 해제할 launchd 라벨 (macOS) |
 | `--smoke-notify` | 꺼짐 | 최초 1회는 금액과 무관하게 현재 시세 발송 (동작 확인용) |
 | `--max-consecutive-failures` | `3` | 연속 실패 시 "봇 이상" 알림. `0` 이면 끔 |
 | `--dump-dir` | 없음 | 원본 응답·스크린샷 저장 (문제 생겼을 때) |
@@ -142,6 +159,8 @@ CJU->CJJ 20260920  25편  partial=False
     <string>--max-price</string><string>100000</string>
     <string>--state-dir</string><string>/path/to/flight-price-watch/state/my-watch</string>
     <string>--notify</string><string>telegram</string>
+    <string>--until</string><string>202609202000</string>
+    <string>--unload-launchd-label</string><string>com.flightwatch.mywatch</string>
     <string>--once</string>
   </array>
   <key>WorkingDirectory</key><string>/path/to/flight-price-watch</string>
@@ -286,7 +305,7 @@ scripts/
 - 조회 간격을 과도하게 줄이지 마세요. 국내선 운임은 분 단위로 움직이지 않습니다.
   기본값 30분이면 충분합니다.
 - 예약이나 결제 기능은 없습니다. 가격 알림만 합니다.
-- 여행 날짜가 지나면 스케줄러를 해제하세요. 자동 만료 기능은 없습니다.
+- `--until` 을 쓰지 않으면 여행 날짜가 지나도 계속 조회합니다. 잊지 말고 지정하세요.
 
 ## 라이선스
 

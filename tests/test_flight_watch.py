@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from flight_watch import select_alerts, select_window  # noqa: E402
+from flight_watch import is_expired, parse_until, select_alerts, select_window  # noqa: E402
 from naver_collector import Flight, parse_flights, parse_sse_events, repair_mojibake  # noqa: E402
 
 
@@ -79,6 +79,28 @@ def test_alerts_sorted_by_price():
     flights = [make("1800", 98_000, "7C226"), make("1900", 81_000, "TW844"),
                make("2000", 90_000, "LJ410")]
     assert [f.total_fare for f in select_alerts(flights, 100_000, {})] == [81_000, 90_000, 98_000]
+
+
+# ------------------------------------------------------------ 감시 기간 만료
+
+@pytest.mark.parametrize("now,expected", [
+    ("202609202000", True),   # 종료 시각 정각 -> 만료 (이 시점부터 멈춤)
+    ("202609201959", False),  # 1분 전 -> 계속 감시
+    ("202609202001", True),
+    ("202609210900", True),   # 다음날
+    ("202608041200", False),  # 한참 전
+])
+def test_expiry_boundary(now, expected):
+    until = parse_until("202609202000")
+    assert is_expired(until, parse_until(now)) is expected
+
+
+def test_no_until_never_expires():
+    assert is_expired(None, parse_until("209912312359")) is False
+
+
+def test_parse_until_is_local_time():
+    assert parse_until("202609202000").utcoffset() is not None
 
 
 # ------------------------------------------------------------ 파서 (실응답 회귀)

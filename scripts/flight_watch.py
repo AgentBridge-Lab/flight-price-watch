@@ -60,6 +60,15 @@ def read_json(path: Path) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- 판정 (순수)
 
+def parse_until(value: str) -> datetime:
+    """감시 종료 시점 YYYYMMDDHHMM 을 로컬 시간대 datetime 으로 바꾼다."""
+    return datetime.strptime(value, "%Y%m%d%H%M").astimezone()
+
+
+def is_expired(until: Optional[datetime], now: datetime) -> bool:
+    return until is not None and now >= until
+
+
 def in_window(flight: Flight, start: str, end: str, *, end_inclusive: bool) -> bool:
     if not flight.dep_time:
         return False
@@ -273,18 +282,40 @@ class Watcher:
                 f"{count}회 연속 수집 실패로 알림이 멈출 수 있습니다.\n마지막 오류: {exc}")
             self.log(f"실패 알림 발송: ok={ok} {detail}")
 
+    # -------------------------------------------------- 만료
+    def expire(self, until: datetime) -> int:
+        """감시 기간이 끝났다. 더 조회하지 않고 스스로 멈춘다."""
+        self.log(f"감시 기간 종료 ({until:%Y-%m-%d %H:%M}) - 더 이상 조회하지 않습니다")
+        self.stop_flag.write_text(f"expired at {now_iso()}\n", encoding="utf-8")
+        self.save_state(status="expired", expired_at=now_iso())
+
+        label = self.args.unload_launchd_label
+        if label and sys.platform == "darwin":
+            target = f"gui/{os.getuid()}/{label}"
+            proc = subprocess.run(["launchctl", "bootout", target],
+                                  capture_output=True, text=True)
+            ok = proc.returncode == 0
+            self.log(f"launchd 잡 해제 {target}: {'성공' if ok else '실패'} "
+                     f"{(proc.stderr or '').strip()[:120]}")
+        return 0
+
     # -------------------------------------------------- 루프
     def run(self) -> int:
         a = self.args
+        until = parse_until(a.until) if a.until else None
         self.log(f"감시 시작 {self.route} {yyyymmdd_kr(a.date)} "
                  f"{hhmm(a.start_time)}~{hhmm(a.end_time)}"
                  f"{'(끝 제외)' if a.end_exclusive else '(끝 포함)'} "
-                 f"임계 {a.max_price:,}원 / notify={a.notify} / once={a.once}")
+                 f"임계 {a.max_price:,}원 / notify={a.notify} / once={a.once}"
+                 + (f" / 종료 {until:%Y-%m-%d %H:%M}" if until else ""))
         if self.stop_flag.exists():
             self.log(f"stop.flag 가 있어 시작하지 않습니다: {self.stop_flag}")
             return 1
-
         while True:
+            # 대기 중에 기한이 지날 수 있으므로 매 조회 직전에 확인한다.
+            if until is not None and is_expired(until, datetime.now().astimezone()):
+                return self.expire(until)
+
             try:
                 self.poll_once()
             except Exception as exc:  # noqa: BLE001  루프는 어떤 실패에도 살아남아야 한다
@@ -330,6 +361,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="헤드리스로 실행. 네이버가 검색을 실행하지 않을 수 있으므로 권장하지 않음")
     p.add_argument("--collect-timeout", type=int, default=90)
     p.add_argument("--dump-dir", help="원본 SSE/스크린샷 저장 경로 (디버그용)")
+    p.add_argument("--until", help="감시 종료 시점 YYYYMMDDHHMM. 지나면 더 조회하지 않고 스스로 멈춘다")
+    p.add_argument("--unload-launchd-label",
+                   help="만료 시 해제할 launchd 라벨 (macOS). 예: com.flightwatch.mywatch")
     p.add_argument("--smoke-notify", action="store_true",
                    help="최초 1회는 임계가와 무관하게 현재 시세를 보낸다 (기본: 보내지 않음)")
     p.add_argument("--max-consecutive-failures", type=int, default=3,
