@@ -78,8 +78,8 @@ chmod 600 ~/.config/flight-price-watch/.env
 ```
 
 > `--until` 은 **실행하는 컴퓨터의 지역 시간**으로 해석합니다.
-> 해외 클라우드 서버(대부분 UTC)에서 돌린다면 `TZ=Asia/Seoul` 을 함께 지정하세요.
-> 안 하면 종료 시각이 9시간 밀립니다.
+> 시간대가 한국이 아닌 곳에서 돌린다면 `TZ=Asia/Seoul` 을 함께 지정하세요.
+> 안 하면 종료 시각이 그만큼 어긋납니다.
 
 만료되면 더 이상 조회하지 않고 `stop.flag` 를 남긴 뒤 종료합니다.
 스케줄러에 등록해뒀다면 `--unload-launchd-label` 로 **잡까지 스스로 해제**하게 할 수 있습니다.
@@ -196,13 +196,8 @@ launchctl unload ~/Library/LaunchAgents/com.flightwatch.mywatch.plist   # 중지
 리눅스 서버에는 화면이 없으므로 `xvfb-run` 으로 가상 디스플레이를 붙입니다.
 
 ```cron
-*/30 * * * * cd /path/to/flight-price-watch && TZ=Asia/Seoul xvfb-run -a .venv/bin/python scripts/flight_watch.py --dep CJU --arr CJJ --date 20260920 --max-price 100000 --until 202609202000 --state-dir state/my-watch --notify telegram --once >> logs/cron.log 2>&1
+*/30 * * * * cd /path/to/flight-price-watch && xvfb-run -a .venv/bin/python scripts/flight_watch.py --dep CJU --arr CJJ --date 20260920 --max-price 100000 --state-dir state/my-watch --notify telegram --once >> logs/cron.log 2>&1
 ```
-
-**클라우드 서버에서도 됩니다.** 네이버는 데이터센터 IP 를 막지 않습니다.
-미국 애저 서버(`AS8075`, Phoenix)에서 `xvfb` 로 25편이 정상 수집되는 것을 확인했습니다.
-해외 IP 차단도 없습니다. 다만 서버 시간대가 대개 UTC 이므로
-`--until` 을 쓴다면 위 예시처럼 `TZ=Asia/Seoul` 을 꼭 붙이세요.
 
 ---
 
