@@ -308,6 +308,10 @@ class Watcher:
                  f"{'(끝 제외)' if a.end_exclusive else '(끝 포함)'} "
                  f"임계 {a.max_price:,}원 / notify={a.notify} / once={a.once}"
                  + (f" / 종료 {until:%Y-%m-%d %H:%M}" if until else ""))
+        # 만료 확인이 stop.flag 보다 먼저다. 만료로 남은 stop.flag 때문에
+        # 이후 실행이 계속 실패(1)로 끝나면 스케줄러 화면이 빨갛게 뒤덮인다.
+        if until is not None and is_expired(until, datetime.now().astimezone()):
+            return self.expire(until)
         if self.stop_flag.exists():
             self.log(f"stop.flag 가 있어 시작하지 않습니다: {self.stop_flag}")
             return 1
