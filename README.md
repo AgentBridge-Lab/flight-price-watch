@@ -142,6 +142,12 @@ CJU->CJJ 20260920  25편  partial=False
 
 노트북을 계속 띄워두는 대신, 스케줄러에 맡기는 편이 안전합니다. 재부팅해도 알아서 돌아옵니다.
 
+| 방법 | 비용 | 컴퓨터를 켜둬야 하나 | 비고 |
+|---|---|---|---|
+| **GitHub Actions** | 무료 | 아니오 | 서버가 필요 없음. 다만 예약 실행이 밀릴 수 있음 |
+| **macOS launchd** | 무료 | 예 | 30분마다 브라우저 창이 잠깐 뜸 |
+| **Linux cron** | 서버 비용 | 아니오 | `xvfb-run` 으로 창 없이. 가장 안정적 |
+
 ### macOS (launchd)
 
 `~/Library/LaunchAgents/com.flightwatch.mywatch.plist` 를 만듭니다.
@@ -185,6 +191,39 @@ launchctl unload ~/Library/LaunchAgents/com.flightwatch.mywatch.plist   # 중지
 >
 > 맥이 잠들면 실행되지 않고, 놓친 회차는 깨어날 때 한 번으로 합쳐집니다.
 > 실제 간격은 30분보다 불규칙합니다.
+
+### GitHub Actions (서버 없이, 무료)
+
+컴퓨터를 켜둘 필요도, 서버를 빌릴 필요도 없습니다. 공개 저장소면 Actions 사용량이 무료입니다.
+
+**네이버는 데이터센터 IP를 막지 않습니다.** 미국 애저 러너(`AS8075`, Phoenix)에서
+`xvfb` 로 25편이 정상 수집되는 것을 확인했습니다. 해외 IP 차단도 없습니다.
+직접 확인해보려면 `probe-datacenter-ip` 워크플로를 수동 실행해 보세요.
+
+**설정 4단계**
+
+1. 이 저장소를 fork 하고 **Actions 탭에서 활성화**합니다 (fork 는 기본적으로 꺼져 있습니다)
+2. 텔레그램 봇을 만들고([@BotFather](https://t.me/BotFather)) **그 봇에게 `/start` 를 한 번 보냅니다**
+   — 사용자가 먼저 말을 걸어야 봇이 메시지를 보낼 수 있습니다
+3. Settings → Secrets and variables → Actions 에 두 개를 등록합니다
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+4. `.github/workflows/watch.yml` 맨 위 `env:` 의 7줄을 본인 조건으로 고칩니다
+
+Actions 탭에서 `watch` 를 수동 실행(`Run workflow`)할 때 **smoke 를 체크**하면
+금액과 관계없이 현재 시세를 한 번 보내봅니다. 알림 연결 확인용입니다.
+
+**미리 알아두실 점**
+
+- **예약 실행(cron)이 얼마나 잘 도는지는 확인하지 못했습니다.** 워크플로를 올린 뒤
+  약 2시간 동안 예정된 3회가 모두 실행되지 않았습니다. GitHub 의 예약 실행은 공식적으로
+  "최선 노력"이라 지연되거나 건너뛸 수 있습니다. 시간을 다투는 용도라면
+  cron 이나 launchd 쪽이 확실합니다.
+- 중복 알림 방지에 쓰는 `state.json` 은 Actions 캐시에 보관합니다.
+  캐시가 사라지면 이미 알린 편을 한 번 더 알릴 수 있습니다.
+- **공개 저장소는 실행 로그도 공개됩니다.** 다만 토큰과 chat id 는 Secrets 라
+  GitHub 가 자동으로 가려줍니다. 로그에 남는 건 운임 정보뿐입니다.
+- 감시 기간(`UNTIL`)이 지나면 워크플로가 **스스로 비활성화**됩니다.
 
 ### Linux (cron)
 
