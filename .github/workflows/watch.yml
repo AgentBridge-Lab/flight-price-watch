@@ -22,6 +22,9 @@ permissions:
   actions: write      # 감시 기간이 끝나면 이 워크플로를 스스로 비활성화하기 위해 필요
 
 env:
+  # --until 은 실행 환경의 지역 시간으로 해석된다. 러너는 UTC 이므로
+  # 이걸 지정하지 않으면 종료 시각이 9시간 밀린다.
+  TZ: Asia/Seoul
   DEP: CJU
   ARR: CJJ
   DATE: '20260920'

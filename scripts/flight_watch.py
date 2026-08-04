@@ -365,7 +365,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="헤드리스로 실행. 네이버가 검색을 실행하지 않을 수 있으므로 권장하지 않음")
     p.add_argument("--collect-timeout", type=int, default=90)
     p.add_argument("--dump-dir", help="원본 SSE/스크린샷 저장 경로 (디버그용)")
-    p.add_argument("--until", help="감시 종료 시점 YYYYMMDDHHMM. 지나면 더 조회하지 않고 스스로 멈춘다")
+    p.add_argument("--until",
+                   help="감시 종료 시점 YYYYMMDDHHMM (실행 환경의 지역 시간 기준). "
+                        "지나면 더 조회하지 않고 스스로 멈춘다. "
+                        "해외 서버라면 TZ=Asia/Seoul 을 함께 지정할 것")
     p.add_argument("--unload-launchd-label",
                    help="만료 시 해제할 launchd 라벨 (macOS). 예: com.flightwatch.mywatch")
     p.add_argument("--smoke-notify", action="store_true",
